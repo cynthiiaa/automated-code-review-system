@@ -1,0 +1,6 @@
+pandas
+pygithub
+transformers
+tiktoken
+torch
+# command for creating venv with specific python version `python3.x -m venv <name>`
