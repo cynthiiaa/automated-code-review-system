@@ -16,7 +16,7 @@ class CodeAwareTokenizer:
         if not code:
             return {
                 "transformers_tokens": 0,
-                "gpt4-tokens": 0,
+                "gpt4_tokens": 0,
                 "efficiency_ratio": 0,
                 "special_tokens": [],
                 "whitespace_handling": {}
@@ -42,8 +42,7 @@ class CodeAwareTokenizer:
     def _identify_special_tokens(self, code: str) -> List[str]:
         """Identify special tokens and code-specific patterns"""
         special_patterns = [
-            (r'\b(class|def|import|from|return|if|else|elif|for|while|try|except|with|as)\b',      
-     + 'keyword'),
+            (r'\b(class|def|import|from|return|if|else|elif|for|while|try|except|with|as)\b', 'keyword'),
             (r'[\+\-\*/=%<>!&|^~]', 'operator'),
             (r'[{}\[\]()]', 'bracket'),
             (r'["\'].*?["\']', 'string'),
@@ -94,28 +93,28 @@ class CodeAwareTokenizer:
                 changed_lines.append((i, line))
             else:
                 context_lines.append((i, line))
-            
-            result_lines = []
-            current_tokens = 0
+        
+        result_lines = []
+        current_tokens = 0
 
-            for idx, line in changed_lines:
-                tokens = len(self.tokenizer.encode(line))
-                if current_tokens + tokens <= max_tokens * 0.7:
-                    result_lines.append((idx, line))
-                    current_tokens += tokens
-            
-            remaining_tokens = max_tokens - current_tokens
-            context_budget = remaining_tokens // 2
+        for idx, line in changed_lines:
+            tokens = len(self.tokenizer.encode(line))
+            if current_tokens + tokens <= max_tokens * 0.7:
+                result_lines.append((idx, line))
+                current_tokens += tokens
+        
+        remaining_tokens = max_tokens - current_tokens
+        context_budget = remaining_tokens // 2
 
-            for idx, line in context_lines:
-                if current_tokens >= max_tokens:
-                    break
-                tokens = len(self.tokenizer.encode(line))
-                if tokens <= context_budget:
-                    result_lines.append((idx, line))
-                    current_tokens += tokens
-                    context_budget -= tokens
+        for idx, line in context_lines:
+            if current_tokens >= max_tokens:
+                break
+            tokens = len(self.tokenizer.encode(line))
+            if tokens <= context_budget:
+                result_lines.append((idx, line))
+                current_tokens += tokens
+                context_budget -= tokens
 
-            result_lines.sort(key=lambda x: x[0])
+        result_lines.sort(key=lambda x: x[0])
 
-            return "\n".join(line for _, line in result_lines)
+        return "\n".join(line for _, line in result_lines)
