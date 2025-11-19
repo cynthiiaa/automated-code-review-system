@@ -98,3 +98,81 @@ class GitHubCollector:
         if language_counts:
             return max(language_counts, key=language_counts.get)
         return 'Unknown'
+
+    def get_pr_data(self, repo_owner: str, repo_name: str, pr_number: int) -> Dict:
+        """Get data for a specific pull request"""
+        try:
+            repo = self.client.get_repo(f"{repo_owner}/{repo_name}")
+            pr = repo.get_pull(pr_number)
+            
+            # Get diff content
+            files = pr.get_files()
+            files_changed = [f.filename for f in files]
+            
+            diff_parts = []
+            for file in files:
+                if file.patch:
+                    diff_parts.append(f"--- {file.filename} ---\n{file.patch}")
+            diff = "\n\n".join(diff_parts)
+            
+            # Get existing comments
+            comments = []
+            for comment in pr.get_review_comments():
+                comments.append(comment.body)
+            
+            language = self._determine_language(files_changed)
+            
+            return {
+                "diff": diff,
+                "description": pr.body or "",
+                "language": language,
+                "files_changed": files_changed,
+                "existing_comments": comments,
+                "title": pr.title,
+                "state": pr.state,
+                "mergeable": pr.mergeable,
+                "url": pr.html_url
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting PR data for {repo_owner}/{repo_name}#{pr_number}: {e}")
+            raise
+
+    def post_pr_comment(self, repo_owner: str, repo_name: str, pr_number: int, comment: str) -> bool:
+        """Post a comment to a pull request"""
+        try:
+            repo = self.client.get_repo(f"{repo_owner}/{repo_name}")
+            pr = repo.get_pull(pr_number)
+            
+            # Post as a general comment on the PR
+            pr.create_issue_comment(comment)
+            logger.info(f"Posted comment to PR {repo_owner}/{repo_name}#{pr_number}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error posting comment to PR {repo_owner}/{repo_name}#{pr_number}: {e}")
+            return False
+
+    def post_review_comment(self, repo_owner: str, repo_name: str, pr_number: int, 
+                          file_path: str, line: int, comment: str) -> bool:
+        """Post a line-specific review comment"""
+        try:
+            repo = self.client.get_repo(f"{repo_owner}/{repo_name}")
+            pr = repo.get_pull(pr_number)
+            
+            # Get the commit SHA for the review
+            commit = pr.get_commits().reversed[0]
+            
+            # Create a review comment on specific line
+            pr.create_review_comment(
+                body=comment,
+                commit=commit,
+                path=file_path,
+                line=line
+            )
+            logger.info(f"Posted review comment to {file_path}:{line} on PR {repo_owner}/{repo_name}#{pr_number}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error posting review comment to PR {repo_owner}/{repo_name}#{pr_number}: {e}")
+            return False
